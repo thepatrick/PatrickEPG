@@ -1,0 +1,126 @@
+<% 
+	time_multiplier = 6;
+-%>
+<div class="epg-title">
+	<div class="epg-title-left">PatrickEPG</div>
+	
+	<div class="epg-times-move-left" id="epg-times-move-left">&laquo;</div>
+	<div class="epg-times-outer"><div class="epg-times-inner" id="epg-times-inner">
+	<% @times_on_display.each do |ti| %><div class="epg-time"><%= ti.strftime("%I:%M %p") %></div><% end %>
+	</div></div>
+	<div class="epg-times-move-right" id="epg-times-move-right">&raquo;</div>
+</div>
+<div class="epg">
+	
+<% previous_time = nil %>
+		
+<% @channels.each do |ch| -%>
+<% previous_time = nil -%>
+<div class="epg-channel" id="epg-channel-<%= ch.id %>">
+	
+	<div class="epg-channel-number"><%= ch.channel %></div>
+	<div class="epg-channel-name" title="<%= @station_array[ch.station_id].name %>"><%= @station_array[ch.station_id].call_sign %></div>
+	
+	<div class="epg-channel-shows-outer">
+		<div class="epg-channel-shows-inner">
+			
+			<% unless @on_array[ch.station_id].nil? -%>
+			
+			<% @on_array[ch.station_id].each do |sch| -%>
+			
+			<% 
+				left_margin = 0
+				width_adjuster = 0
+				if(previous_time.nil?)
+					width_adjuster = ((sch.start_time.localtime - @zero_time) / 60).to_i
+				elsif sch.start_time.localtime < @zero_time 
+					left_margin = ((sch.start_time.localtime - @zero_time) / 60).to_i					
+				else
+					left_margin = ((sch.start_time.localtime - previous_time) / 60).to_i					
+				end
+				previous_time = sch.start_time.localtime + sch.duration.minutes
+				
+				left_margin = (left_margin * time_multiplier)
+				width = (sch.duration * time_multiplier) + (width_adjuster * time_multiplier)
+				
+				padding_right = 10
+				padding_left = 10
+				if(left_margin < 0 and -left_margin < width) 
+					padding_left = padding_left + -left_margin
+				end
+				
+				if (width - 21) < 0
+					padding_left = 0
+					padding_right = 0
+					width = width + 21
+				end
+			%>
+<%
+	show_name = @progs_array[sch.program_id].title 
+	if(/Guthy|Paid/.match(show_name))
+		show_name = ""
+	end
+	is_recording = !@recordings[sch.program_id].nil?
+-%>
+			
+			<div class="epg-channel-show epg-show-program-<%= sch.program_id %> epg-show-sched-<%= sch.id %> <%= "show-blank" if show_name.eql?("") %> <%= "show-hdtv" if sch.hdtv %> <%= " show-firstrun" if sch.first_run %> <%= " show-record" if is_recording %>" 
+				style="float: left; margin-left: <%= left_margin.to_s %>px; width: <%= width - 21 %>px;
+						padding-left: <%= padding_left %>px; padding-right: <%= padding_right %>px;" 
+				zerotime="<%= @zero_time %>" endtime="<%= @end_time %>" starttime="<%= sch.start_time.localtime %>" duration="<%= sch.duration %>" leftmargin="<%=left_margin%>" widthadjuster="<%=width_adjuster%>"
+				onclick="patrickScroller.showInfo(<%= sch.id %>);">
+				<div class="epg-channel-show-inside"><%= show_name %></div>
+			</div>
+			
+			<% end -%>
+			<% end -%>
+			
+		</div>
+	</div>
+</div>
+<% end -%>
+</div>
+
+<div id="epg-popup" style="position: absolute; top: 60px; right: 40px; display: none;">
+	
+	<div id="epg-popup-showName" onclick="$('epg-popup').hide();">Show Name</div>
+	
+	<div id="epg-popup-subtitle">Subtitle</div>
+	<div id="epg-popup-description">Description</div>
+	
+	<div id="epg-popup-time">
+		<span id="epg-popup-time-episode">&nbsp;</span>
+		<span id="epg-popup-time-start">&nbsp;</span> |
+		Duration: <span id="epg-popup-time-duration">&nbsp;</span>
+	</div>
+	
+	<table id="epg-popup-othertimes">
+		<tr id="epg-popup-othertimes-header">
+			<th class="othertimes-when">When</th>
+			<th class="othertimes-on">On</th>
+			<th class="othertimes-hdtv">HDTV</th>
+		</tr>
+		<tr id="epg-popup-othertimes-skeleton" style="display: none;">
+			<td class="othertimes-when">When</td>
+			<td class="othertimes-on">On</td>
+			<td class="othertimes-hdtv">HDTV</td>
+		</tr>
+	</table>
+	
+	<div id="epg-popup-row-of-icons">
+		<div id="epg-popup-new">New</div>
+		<div id="epg-popup-hdtv">HDTV</div>
+		<div id="epg-popup-dolby">Dolby</div>
+		
+		<div id="epg-popup-record">Record</div>
+		<div id="epg-popup-findOthers">Other times</div>
+		
+	</div>
+	
+</div>
+
+<%= javascript_include_tag 'epg.js' %>
+<script type="text/javascript">
+	patrickScroller.multiplier = <%= time_multiplier -%>; 
+	patrickScroller.setZeroTime(<%= (@zero_time + 1.hour).utc.to_json -%>);
+	document.observe('dom:loaded', patrickScroller.setup.bind(patrickScroller));
+</script>
